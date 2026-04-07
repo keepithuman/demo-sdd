@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "iag-compliance-generate-pdf",
+  "title": "IAG5 Script: compliance_generate_pdf.py",
+  "description": "Generates a multi-page PDF audit report from scan results. Uses reportlab/fpdf2. Called once per scan inside the Generate Report child workflow.",
+
+  "input": {
+    "type": "object",
+    "required": ["scan_results", "standard_name", "standard_version", "timestamp"],
+    "additionalProperties": false,
+    "properties": {
+      "scan_results": {
+        "$ref": "shared-types.schema.json#/definitions/ScanResults",
+        "description": "Full scan results from the Evaluate & Grade phase"
+      },
+      "standard_name": {
+        "type": "string",
+        "enum": ["CIS", "INTERNAL"],
+        "description": "Name of the compliance standard evaluated"
+      },
+      "standard_version": {
+        "type": "string",
+        "description": "Version of the standard"
+      },
+      "timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Scan timestamp to include in report header"
+      }
+    }
+  },
+
+  "output": {
+    "type": "object",
+    "required": ["pdf_base64", "page_count"],
+    "additionalProperties": false,
+    "properties": {
+      "pdf_base64": {
+        "type": "string",
+        "description": "Base64-encoded PDF binary. Passed directly to email adapter as attachment."
+      },
+      "page_count": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Number of pages in the generated PDF"
+      }
+    }
+  },
+
+  "report_structure": {
+    "description": "PDF page layout",
+    "pages": [
+      "Page 1: Executive Summary — posture score, fleet breakdown, scan metadata (scan_id, timestamp, standard, device_group, device_count)",
+      "Page 2+: Fleet Overview Table — one row per device: name, score, violation_count, critical_violation_count",
+      "Page N+: Device Detail — one section per non-compliant/partial device with per-rule results and evidence lines"
+    ]
+  },
+
+  "example_output": {
+    "pdf_base64": "JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBv...(truncated)",
+    "page_count": 5
+  }
+}

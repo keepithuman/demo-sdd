@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "workflow-evaluate-grade",
+  "title": "Child Workflow: Compliance - Evaluate and Grade",
+  "description": "Evaluates each device's config against compliance rules via IAG5. Scores and aggregates results. Persists scan_results to IAP state store for trend tracking.",
+
+  "inputSchema": {
+    "type": "object",
+    "required": ["configs", "rules", "standard_name", "standard_version", "scan_id"],
+    "additionalProperties": false,
+    "properties": {
+      "configs": {
+        "type": "object",
+        "description": "Map of device_name → config_text. Output of Collect Configs child.",
+        "additionalProperties": { "type": "string" }
+      },
+      "rules": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "shared-types.schema.json#/definitions/Rule" },
+        "description": "Full rules array for the active standard. Loaded from GitLab by orchestrator."
+      },
+      "standard_name": {
+        "type": "string",
+        "enum": ["CIS", "INTERNAL"]
+      },
+      "standard_version": {
+        "type": "string",
+        "examples": ["2.0.0"]
+      },
+      "scan_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Unique scan identifier. Used as the key when storing results to IAP state store."
+      }
+    }
+  },
+
+  "outputSchema": {
+    "type": "object",
+    "required": ["scan_results", "fleet_summary", "taskStatus"],
+    "additionalProperties": false,
+    "properties": {
+      "scan_results": {
+        "$ref": "shared-types.schema.json#/definitions/ScanResults",
+        "description": "Full per-device evaluation results. Also persisted to IAP state store."
+      },
+      "fleet_summary": {
+        "$ref": "shared-types.schema.json#/definitions/FleetSummary",
+        "description": "Aggregated posture across all evaluated devices"
+      },
+      "taskStatus": {
+        "type": "string",
+        "enum": ["success", "error"]
+      }
+    }
+  },
+
+  "internal_steps": [
+    "1. Build device list from configs map keys",
+    "2. childJob loop (parallel) — call compliance_evaluate.py via IAG5 per device",
+    "3. Collect per-device results into device_results array",
+    "4. Compute fleet_summary (counts + posture_score)",
+    "5. Assemble scan_results object",
+    "6. Store scan_results to IAP state store keyed by scan_id",
+    "7. Set taskStatus = success"
+  ],
+
+  "state_store_key_format": "compliance_scan_{scan_id}"
+}

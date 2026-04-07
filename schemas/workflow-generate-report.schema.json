@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "workflow-generate-report",
+  "title": "Child Workflow: Compliance - Generate Report",
+  "description": "Generates audit-ready PDF (via IAG5 reportlab) and CSV (via JST transform) from scan results. Returns both as strings to the orchestrator for email delivery.",
+
+  "inputSchema": {
+    "type": "object",
+    "required": ["scan_results", "standard_name", "standard_version", "scan_id", "timestamp"],
+    "additionalProperties": false,
+    "properties": {
+      "scan_results": {
+        "$ref": "shared-types.schema.json#/definitions/ScanResults"
+      },
+      "standard_name": { "type": "string", "enum": ["CIS", "INTERNAL"] },
+      "standard_version": { "type": "string" },
+      "scan_id": { "type": "string", "format": "uuid" },
+      "timestamp": { "type": "string", "format": "date-time" }
+    }
+  },
+
+  "outputSchema": {
+    "type": "object",
+    "required": ["pdf_base64", "csv_string", "taskStatus"],
+    "additionalProperties": false,
+    "properties": {
+      "pdf_base64": {
+        "type": "string",
+        "description": "Base64-encoded PDF. Ready to pass directly to email adapter as attachment."
+      },
+      "csv_string": {
+        "type": "string",
+        "description": "CSV report as a plain string. One header row + one row per device."
+      },
+      "taskStatus": {
+        "type": "string",
+        "enum": ["success", "error"]
+      }
+    }
+  },
+
+  "csv_columns": [
+    "scan_id",
+    "timestamp",
+    "standard_name",
+    "standard_version",
+    "device_name",
+    "device_score",
+    "violation_count",
+    "critical_violation_count",
+    "posture_score"
+  ],
+
+  "internal_steps": [
+    "1. Call compliance_generate_pdf.py via IAG5 → returns pdf_base64",
+    "2. JST transformation on scan_results → produces CSV row array",
+    "3. Join CSV rows into csv_string",
+    "4. Set taskStatus = success"
+  ]
+}

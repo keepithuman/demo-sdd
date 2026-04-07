@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "iag-compliance-evaluate",
+  "title": "IAG5 Script: compliance_evaluate.py",
+  "description": "Evaluates a single device's running config against a set of compliance rules. Called once per device inside the Evaluate & Grade child workflow.",
+
+  "input": {
+    "type": "object",
+    "required": ["device_name", "config_text", "rules"],
+    "additionalProperties": false,
+    "properties": {
+      "device_name": {
+        "type": "string",
+        "description": "Device name as registered in ConfigurationManager",
+        "examples": ["Cisco-IOS-AWS-Lab", "CPE-1"]
+      },
+      "config_text": {
+        "type": "string",
+        "description": "Raw running configuration text retrieved by ConfigurationManager.getDeviceConfig"
+      },
+      "rules": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "shared-types.schema.json#/definitions/Rule" },
+        "description": "Rules to evaluate. Platform-filtered by caller (only rules matching device platform are passed)."
+      }
+    }
+  },
+
+  "output": {
+    "type": "object",
+    "required": ["device_name", "device_score", "rule_results", "violation_count", "critical_violation_count"],
+    "additionalProperties": false,
+    "properties": {
+      "device_name": { "type": "string" },
+      "device_score": {
+        "type": "string",
+        "enum": ["compliant", "partial", "non_compliant"]
+      },
+      "rule_results": {
+        "type": "array",
+        "items": { "$ref": "shared-types.schema.json#/definitions/RuleResult" }
+      },
+      "violation_count": { "type": "integer", "minimum": 0 },
+      "critical_violation_count": { "type": "integer", "minimum": 0 }
+    }
+  },
+
+  "scoring_logic": {
+    "description": "How device_score is derived from rule_results",
+    "rules": [
+      "compliant    → violation_count == 0",
+      "non_compliant → critical_violation_count > 0",
+      "partial      → violation_count > 0 AND critical_violation_count == 0"
+    ]
+  },
+
+  "example_input": {
+    "device_name": "Cisco-IOS-AWS-Lab",
+    "config_text": "!\nversion 15.9\nno service pad\nservice timestamps debug datetime msec\nip domain-name lab.example.com\n!",
+    "rules": [
+      {
+        "rule_id": "CIS-IOS-1.1.1",
+        "name": "Disable IP Source Routing",
+        "platform": "ios",
+        "standard": "CIS",
+        "standard_version": "2.0.0",
+        "severity": "critical",
+        "type": "match",
+        "pattern": "no ip source-route",
+        "description": "IP source routing should be disabled to prevent route manipulation"
+      },
+      {
+        "rule_id": "CIS-IOS-1.1.2",
+        "name": "Disable Service PAD",
+        "platform": "ios",
+        "standard": "CIS",
+        "standard_version": "2.0.0",
+        "severity": "medium",
+        "type": "match",
+        "pattern": "no service pad",
+        "description": "PAD (Packet Assembler/Disassembler) service should be disabled"
+      }
+    ]
+  },
+
+  "example_output": {
+    "device_name": "Cisco-IOS-AWS-Lab",
+    "device_score": "partial",
+    "rule_results": [
+      {
+        "rule_id": "CIS-IOS-1.1.1",
+        "rule_name": "Disable IP Source Routing",
+        "status": "fail",
+        "severity": "critical",
+        "evidence": "",
+        "expected_pattern": "no ip source-route"
+      },
+      {
+        "rule_id": "CIS-IOS-1.1.2",
+        "rule_name": "Disable Service PAD",
+        "status": "pass",
+        "severity": "medium",
+        "evidence": "no service pad",
+        "expected_pattern": "no service pad"
+      }
+    ],
+    "violation_count": 1,
+    "critical_violation_count": 1
+  }
+}

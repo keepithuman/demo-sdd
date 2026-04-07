@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "workflow-collect-configs",
+  "title": "Child Workflow: Compliance - Collect Configs",
+  "description": "Retrieves running configurations from all devices in the target group. Flags unreachable devices without marking them compliant. Runs as a child job from the orchestrator.",
+
+  "inputSchema": {
+    "type": "object",
+    "required": ["device_group"],
+    "additionalProperties": false,
+    "properties": {
+      "device_group": {
+        "type": "string",
+        "default": "Cisco Devices",
+        "description": "IAP ConfigurationManager device group to use as audit scope",
+        "examples": ["Cisco Devices"]
+      }
+    }
+  },
+
+  "outputSchema": {
+    "type": "object",
+    "required": ["configs", "unreachable_devices", "device_count", "taskStatus"],
+    "additionalProperties": false,
+    "properties": {
+      "configs": {
+        "type": "object",
+        "description": "Map of device_name to raw running config text. Only reachable devices are included.",
+        "additionalProperties": { "type": "string" },
+        "examples": [{ "Cisco-IOS-AWS-Lab": "!\nversion 15.9\n..." }]
+      },
+      "unreachable_devices": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Device names that returned an error or timeout during getDeviceConfig"
+      },
+      "device_count": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Total number of devices in the group (reachable + unreachable)"
+      },
+      "taskStatus": {
+        "type": "string",
+        "enum": ["success", "error"],
+        "description": "success even if some devices are unreachable — partial collection is not a failure"
+      }
+    }
+  },
+
+  "internal_steps": [
+    "1. getDevicesFiltered (ConfigurationManager) — filter by group=device_group",
+    "2. childJob loop (parallel) — one child per device calling getDeviceConfig",
+    "3. Collect results — build configs map, separate unreachable into array",
+    "4. Set taskStatus = success"
+  ]
+}

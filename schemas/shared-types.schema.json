@@ -1,0 +1,220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "shared-types",
+  "title": "Compliance Audit — Shared Data Types",
+  "description": "Reusable type definitions referenced by all component schemas",
+  "definitions": {
+
+    "Rule": {
+      "$id": "#/definitions/Rule",
+      "title": "Rule",
+      "description": "A single compliance rule to evaluate against device configuration",
+      "type": "object",
+      "required": ["rule_id", "name", "platform", "standard", "severity", "type", "pattern"],
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "description": "Unique rule identifier, e.g. CIS-IOS-1.1.1",
+          "pattern": "^[A-Z0-9_\\-\\.]+$",
+          "examples": ["CIS-IOS-1.1.1", "CORP-NTP-001"]
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable rule name",
+          "examples": ["Disable unused services", "NTP server configured"]
+        },
+        "platform": {
+          "type": "string",
+          "description": "Device platform this rule applies to",
+          "enum": ["ios", "nxos", "all"],
+          "examples": ["ios", "nxos"]
+        },
+        "standard": {
+          "type": "string",
+          "description": "Compliance standard this rule belongs to",
+          "enum": ["CIS", "INTERNAL"],
+          "examples": ["CIS", "INTERNAL"]
+        },
+        "standard_version": {
+          "type": "string",
+          "description": "Version of the standard",
+          "examples": ["2.0.0", "1.3.2"]
+        },
+        "severity": {
+          "type": "string",
+          "description": "Severity if rule fails",
+          "enum": ["critical", "high", "medium", "low"]
+        },
+        "type": {
+          "type": "string",
+          "description": "Evaluation method",
+          "enum": ["match", "no-match", "value-comparison"]
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Regex pattern or value to evaluate against config text",
+          "examples": ["no service pad", "ntp server \\d+\\.\\d+\\.\\d+\\.\\d+"]
+        },
+        "description": {
+          "type": "string",
+          "description": "What the rule checks and why it matters"
+        },
+        "remediation_hint": {
+          "type": "string",
+          "description": "Suggested IOS/NX-OS command to fix a violation",
+          "examples": ["no service pad"]
+        }
+      }
+    },
+
+    "RuleResult": {
+      "$id": "#/definitions/RuleResult",
+      "title": "RuleResult",
+      "description": "Evaluation result for a single rule on a single device",
+      "type": "object",
+      "required": ["rule_id", "rule_name", "status", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": { "type": "string" },
+        "rule_name": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "not_applicable"],
+          "description": "pass = rule satisfied, fail = violation found, not_applicable = rule does not apply to this device"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"]
+        },
+        "evidence": {
+          "type": "string",
+          "description": "Config line(s) that triggered pass or fail. Empty for not_applicable.",
+          "examples": ["no service pad"]
+        },
+        "expected_pattern": {
+          "type": "string",
+          "description": "The pattern that was evaluated"
+        }
+      }
+    },
+
+    "DeviceResult": {
+      "$id": "#/definitions/DeviceResult",
+      "title": "DeviceResult",
+      "description": "Full compliance evaluation result for a single device",
+      "type": "object",
+      "required": ["device_name", "device_score", "rule_results", "violation_count", "critical_violation_count"],
+      "additionalProperties": false,
+      "properties": {
+        "device_name": {
+          "type": "string",
+          "description": "Device name as registered in ConfigurationManager"
+        },
+        "device_score": {
+          "type": "string",
+          "enum": ["compliant", "partial", "non_compliant"],
+          "description": "compliant = all rules pass, partial = non-critical violations only, non_compliant = at least one critical violation"
+        },
+        "rule_results": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/RuleResult" }
+        },
+        "violation_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of failed rules"
+        },
+        "critical_violation_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of failed rules with severity=critical"
+        }
+      }
+    },
+
+    "FleetSummary": {
+      "$id": "#/definitions/FleetSummary",
+      "title": "FleetSummary",
+      "description": "Aggregate compliance posture across the full device fleet",
+      "type": "object",
+      "required": ["total_devices", "compliant_count", "partial_count", "non_compliant_count", "unreachable_count", "posture_score"],
+      "additionalProperties": false,
+      "properties": {
+        "total_devices": { "type": "integer", "minimum": 0 },
+        "compliant_count": { "type": "integer", "minimum": 0 },
+        "partial_count": { "type": "integer", "minimum": 0 },
+        "non_compliant_count": { "type": "integer", "minimum": 0 },
+        "unreachable_count": { "type": "integer", "minimum": 0 },
+        "posture_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Percentage of evaluated devices that are fully compliant. Unreachable devices are excluded."
+        }
+      }
+    },
+
+    "ScanResults": {
+      "$id": "#/definitions/ScanResults",
+      "title": "ScanResults",
+      "description": "Complete point-in-time compliance scan result — the central data structure shared across phases",
+      "type": "object",
+      "required": ["scan_id", "timestamp", "standard_name", "standard_version", "device_group", "device_results", "fleet_summary", "unreachable_devices"],
+      "additionalProperties": false,
+      "properties": {
+        "scan_id": {
+          "type": "string",
+          "description": "Unique scan identifier (UUID)",
+          "format": "uuid"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of scan start"
+        },
+        "standard_name": {
+          "type": "string",
+          "enum": ["CIS", "INTERNAL"],
+          "description": "Compliance standard evaluated"
+        },
+        "standard_version": {
+          "type": "string",
+          "description": "Version of the standard at scan time"
+        },
+        "device_group": {
+          "type": "string",
+          "description": "IAP device group used as audit scope",
+          "examples": ["Cisco Devices"]
+        },
+        "device_results": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DeviceResult" },
+          "description": "Per-device evaluation results"
+        },
+        "fleet_summary": { "$ref": "#/definitions/FleetSummary" },
+        "unreachable_devices": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Device names that could not be reached during config collection"
+        }
+      }
+    },
+
+    "SnowIncidentRef": {
+      "$id": "#/definitions/SnowIncidentRef",
+      "title": "SnowIncidentRef",
+      "description": "Reference to a ServiceNow incident created or closed for a device",
+      "type": "object",
+      "required": ["device_name", "sys_id"],
+      "additionalProperties": false,
+      "properties": {
+        "device_name": { "type": "string" },
+        "sys_id": {
+          "type": "string",
+          "description": "ServiceNow sys_id of the incident record"
+        }
+      }
+    }
+  }
+}

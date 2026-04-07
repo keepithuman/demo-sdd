@@ -1,3 +1,14 @@
 .env
 .auth.json
-*.json
+# Platform discovery data — not committed
+adapters.json
+applications.json
+apps.json
+tasks.json
+devices.json
+workflows.json
+device-groups.json
+task-schemas.json
+openapi.json
+# Schemas and project assets are committed
+

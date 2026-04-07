@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "workflow-compliance-audit-orchestrator",
+  "title": "Parent Workflow: Compliance Audit (Orchestrator)",
+  "description": "Orchestrates the full compliance audit lifecycle. Sequences child workflows, handles notifications, and optionally triggers remediation. Entry point for both manual and scheduled runs.",
+
+  "inputSchema": {
+    "type": "object",
+    "required": ["device_group", "standard", "slack_webhook_url", "email_recipients"],
+    "additionalProperties": false,
+    "properties": {
+      "device_group": {
+        "type": "string",
+        "default": "Cisco Devices",
+        "description": "IAP device group to audit"
+      },
+      "standard": {
+        "type": "string",
+        "enum": ["CIS", "INTERNAL"],
+        "default": "CIS",
+        "description": "Compliance standard to evaluate against"
+      },
+      "slack_webhook_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "Slack incoming webhook URL for scan summary notification"
+      },
+      "email_recipients": {
+        "type": "array",
+        "items": { "type": "string", "format": "email" },
+        "minItems": 1,
+        "description": "Distribution list for PDF + CSV report delivery"
+      },
+      "remediation_enabled": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, triggers Remediate Device child for non-compliant devices that have a remediation_hint defined"
+      }
+    }
+  },
+
+  "outputSchema": {
+    "type": "object",
+    "required": ["scan_id", "fleet_summary", "pdf_base64", "csv_string", "incidents_created"],
+    "additionalProperties": false,
+    "properties": {
+      "scan_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Unique identifier for this scan run"
+      },
+      "fleet_summary": {
+        "$ref": "shared-types.schema.json#/definitions/FleetSummary"
+      },
+      "pdf_base64": {
+        "type": "string",
+        "description": "Base64-encoded PDF audit report"
+      },
+      "csv_string": {
+        "type": "string",
+        "description": "CSV audit report"
+      },
+      "incidents_created": {
+        "type": "array",
+        "items": { "$ref": "shared-types.schema.json#/definitions/SnowIncidentRef" }
+      }
+    }
+  },
+
+  "execution_order": [
+    "1. Generate scan_id (UUID)",
+    "2. Load rules from GitLab (standard + version)",
+    "3. childJob → Compliance - Collect Configs",
+    "4. childJob → Compliance - Evaluate and Grade",
+    "5. childJob → Compliance - Generate Report",
+    "6. childJob → Compliance - ServiceNow Incidents",
+    "7. [if remediation_enabled] childJob loop → Compliance - Remediate Device (per non-compliant device with remediation_hint)",
+    "8. runService compliance_slack_notify.py (IAG5) → Slack",
+    "9. mailWithAdvancedFields (email adapter) → PDF + CSV to email_recipients"
+  ],
+
+  "trigger_defaults": {
+    "description": "Values used by the OperationsManager weekly trigger (Compliance Audit - Weekly)",
+    "device_group": "Cisco Devices",
+    "standard": "CIS",
+    "remediation_enabled": false,
+    "note": "slack_webhook_url and email_recipients are stored as trigger parameters"
+  }
+}

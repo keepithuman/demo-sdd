@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "workflow-servicenow-incidents",
+  "title": "Child Workflow: Compliance - ServiceNow Incidents",
+  "description": "Opens a ServiceNow incident for each non-compliant device (if one is not already open). Closes incidents for devices that are now compliant. One incident per device — not per violation.",
+
+  "inputSchema": {
+    "type": "object",
+    "required": ["scan_results"],
+    "additionalProperties": false,
+    "properties": {
+      "scan_results": {
+        "$ref": "shared-types.schema.json#/definitions/ScanResults"
+      },
+      "assignment_group": {
+        "type": "string",
+        "default": "Network Team",
+        "description": "ServiceNow assignment group for new incidents"
+      }
+    }
+  },
+
+  "outputSchema": {
+    "type": "object",
+    "required": ["incidents_created", "incidents_closed", "taskStatus"],
+    "additionalProperties": false,
+    "properties": {
+      "incidents_created": {
+        "type": "array",
+        "items": { "$ref": "shared-types.schema.json#/definitions/SnowIncidentRef" },
+        "description": "Incidents newly opened this scan run"
+      },
+      "incidents_closed": {
+        "type": "array",
+        "items": { "$ref": "shared-types.schema.json#/definitions/SnowIncidentRef" },
+        "description": "Incidents closed because the device is now compliant"
+      },
+      "taskStatus": {
+        "type": "string",
+        "enum": ["success", "error"]
+      }
+    }
+  },
+
+  "incident_fields": {
+    "short_description": "Compliance violation: {device_name} — {non_compliant_count} violations ({critical_count} critical)",
+    "description": "Device {device_name} failed {violation_count} compliance rules in scan {scan_id} on {timestamp}.\n\nCritical violations:\n{critical_rule_list}\n\nScan standard: {standard_name} v{standard_version}",
+    "category": "Network",
+    "subcategory": "Compliance",
+    "urgency": "2 (High) if critical_violation_count > 0 else 3 (Moderate)",
+    "assignment_group": "Network Team"
+  },
+
+  "internal_steps": [
+    "1. Filter scan_results.device_results for non_compliant + partial devices",
+    "2. Loop (sequential) per non-compliant device:",
+    "   a. getIncidents — search by device_name in short_description",
+    "   b. If no open incident → createIncident with violation summary",
+    "   c. Track sys_id in incidents_created",
+    "3. Filter scan_results.device_results for compliant devices",
+    "4. Loop (sequential) per compliant device:",
+    "   a. getIncidents — search for open incident by device_name",
+    "   b. If open incident found → updateIncident (state=resolved)",
+    "   c. Track sys_id in incidents_closed",
+    "5. Set taskStatus = success"
+  ]
+}

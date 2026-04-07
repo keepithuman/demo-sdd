@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "workflow-remediate-device",
+  "title": "Child Workflow: Compliance - Remediate Device",
+  "description": "Optional. Applies a corrective config to a single non-compliant device. Requires human approval before any change. Backs up device first. Re-evaluates after to confirm fix. Off by default.",
+
+  "inputSchema": {
+    "type": "object",
+    "required": ["device_name", "corrective_config", "rules", "standard_name"],
+    "additionalProperties": false,
+    "properties": {
+      "device_name": {
+        "type": "string",
+        "description": "Device to remediate. Must exist in ConfigurationManager."
+      },
+      "corrective_config": {
+        "type": "string",
+        "description": "IOS/NX-OS configuration commands to push. One command per line."
+      },
+      "rules": {
+        "type": "array",
+        "items": { "$ref": "shared-types.schema.json#/definitions/Rule" },
+        "description": "Rules to re-evaluate after fix. Usually the subset that failed on this device."
+      },
+      "standard_name": {
+        "type": "string",
+        "enum": ["CIS", "INTERNAL"]
+      }
+    }
+  },
+
+  "outputSchema": {
+    "type": "object",
+    "required": ["remediation_status", "backup_id", "post_eval_results", "taskStatus"],
+    "additionalProperties": false,
+    "properties": {
+      "remediation_status": {
+        "type": "string",
+        "enum": ["pass", "fail", "rejected"],
+        "description": "pass = fix applied and post-eval passed, fail = fix applied but post-eval failed, rejected = operator rejected at approval gate"
+      },
+      "backup_id": {
+        "type": "string",
+        "description": "ConfigurationManager backup reference for the pre-remediation config snapshot"
+      },
+      "post_eval_results": {
+        "type": "array",
+        "items": { "$ref": "shared-types.schema.json#/definitions/RuleResult" },
+        "description": "Per-rule results after fix applied. Empty if remediation was rejected or backup failed."
+      },
+      "taskStatus": {
+        "type": "string",
+        "enum": ["success", "error"]
+      }
+    }
+  },
+
+  "internal_steps": [
+    "1. backUpDevice (ConfigurationManager) → backup_id",
+    "2. ViewData manual task — show operator: device_name, violations, corrective_config",
+    "   - Approve → continue",
+    "   - Reject → set remediation_status=rejected, taskStatus=success, end",
+    "3. RunCommandTemplate (MOP) — push corrective_config to device",
+    "4. Call compliance_evaluate.py (IAG5) with fresh config + rules",
+    "5. Set remediation_status = pass if all previously-failing rules now pass, else fail",
+    "6. Set taskStatus = success"
+  ],
+
+  "safety_rules": [
+    "Backup is always taken BEFORE any config push — non-negotiable",
+    "If backup fails, abort immediately — do not push config",
+    "If post-eval fails, flag device but do NOT retry automatically",
+    "remediation_enabled must be true in orchestrator inputs to invoke this child"
+  ]
+}

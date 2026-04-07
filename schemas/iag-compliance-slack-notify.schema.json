@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "iag-compliance-slack-notify",
+  "title": "IAG5 Script: compliance_slack_notify.py",
+  "description": "Posts a compliance scan summary to a Slack channel via incoming webhook. Called as a direct task in the orchestrator after the Generate Report phase.",
+
+  "input": {
+    "type": "object",
+    "required": ["webhook_url", "summary"],
+    "additionalProperties": false,
+    "properties": {
+      "webhook_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "Slack incoming webhook URL. Passed as a workflow input at scan start.",
+        "examples": ["https://hooks.slack.com/services/T000/B000/xxxx"]
+      },
+      "summary": {
+        "type": "object",
+        "required": ["scan_id", "standard_name", "posture_score", "compliant_count", "partial_count", "non_compliant_count", "unreachable_count", "timestamp"],
+        "additionalProperties": false,
+        "properties": {
+          "scan_id": { "type": "string", "format": "uuid" },
+          "standard_name": { "type": "string" },
+          "posture_score": { "type": "number", "minimum": 0, "maximum": 100 },
+          "compliant_count": { "type": "integer", "minimum": 0 },
+          "partial_count": { "type": "integer", "minimum": 0 },
+          "non_compliant_count": { "type": "integer", "minimum": 0 },
+          "unreachable_count": { "type": "integer", "minimum": 0 },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+
+  "output": {
+    "type": "object",
+    "required": ["status_code", "ok"],
+    "additionalProperties": false,
+    "properties": {
+      "status_code": {
+        "type": "integer",
+        "description": "HTTP response code from Slack webhook",
+        "examples": [200]
+      },
+      "ok": {
+        "type": "boolean",
+        "description": "true if Slack returned 200 OK"
+      }
+    }
+  },
+
+  "slack_message_format": {
+    "description": "Message posted to Slack channel",
+    "example": ":white_check_mark: *Compliance Audit Complete*\nStandard: CIS v2.0.0  |  Scan ID: `abc-123`\nPosture Score: *87%*\n• Compliant: 24  • Partial: 5  • Non-Compliant: 3  • Unreachable: 1\n_2026-04-07T06:00:00Z_"
+  },
+
+  "example_input": {
+    "webhook_url": "https://hooks.slack.com/services/T000/B000/xxxx",
+    "summary": {
+      "scan_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "standard_name": "CIS",
+      "posture_score": 87.5,
+      "compliant_count": 24,
+      "partial_count": 5,
+      "non_compliant_count": 3,
+      "unreachable_count": 1,
+      "timestamp": "2026-04-07T06:00:00Z"
+    }
+  },
+
+  "example_output": {
+    "status_code": 200,
+    "ok": true
+  }
+}
