@@ -1,0 +1,216 @@
+<mxfile host="app.diagrams.net" modified="2026-04-07T00:00:00.000Z" agent="Claude Code" version="21.0.0" type="device">
+  <diagram id="compliance-audit-arch" name="Network Compliance Audit">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ============================================================ -->
+        <!-- SWIM LANE LABELS -->
+        <!-- ============================================================ -->
+
+        <!-- Trigger Layer -->
+        <mxCell id="lane-trigger" value="Trigger Layer" style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="1560" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Orchestration Layer -->
+        <mxCell id="lane-orch" value="Orchestration Layer" style="swimlane;startSize=30;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="160" width="1560" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Execution Layer -->
+        <mxCell id="lane-exec" value="Execution Layer — Child Workflows + IAG5 Scripts" style="swimlane;startSize=30;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="290" width="1560" height="260" as="geometry" />
+        </mxCell>
+
+        <!-- Platform Services -->
+        <mxCell id="lane-platform" value="Platform Services" style="swimlane;startSize=30;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="570" width="1560" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Integration Layer -->
+        <mxCell id="lane-integration" value="Integration Layer" style="swimlane;startSize=30;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="1560" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- TRIGGER LAYER NODES -->
+        <!-- ============================================================ -->
+
+        <mxCell id="trigger-cron" value="Compliance Audit - Weekly&#xa;Cron: 0 6 * * 1&#xa;(OperationsManager)" style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="lane-trigger">
+          <mxGeometry x="60" y="35" width="200" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="trigger-manual" value="On-Demand Trigger&#xa;Engineer / API&#xa;(jobs/start)" style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="lane-trigger">
+          <mxGeometry x="310" y="35" width="200" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- ORCHESTRATION LAYER NODES -->
+        <!-- ============================================================ -->
+
+        <mxCell id="orch-main" value="Compliance Audit (Orchestrator)&#xa;Inputs: device_group, standard, slack_webhook_url,&#xa;email_recipients, remediation_enabled&#xa;Outputs: scan_id, fleet_summary, pdf_base64, csv_string" style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="lane-orch">
+          <mxGeometry x="400" y="25" width="760" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- EXECUTION LAYER — CHILD WORKFLOWS -->
+        <!-- ============================================================ -->
+
+        <mxCell id="child-collect" value="① Collect Configs&#xa;In: device_group&#xa;Out: configs map,&#xa;unreachable_devices" style="rounded=1;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="lane-exec">
+          <mxGeometry x="60" y="40" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="child-evaluate" value="② Evaluate &amp; Grade&#xa;In: configs, rules,&#xa;standard, scan_id&#xa;Out: scan_results,&#xa;fleet_summary" style="rounded=1;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="lane-exec">
+          <mxGeometry x="290" y="40" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="child-report" value="③ Generate Report&#xa;In: scan_results,&#xa;standard, timestamp&#xa;Out: pdf_base64,&#xa;csv_string" style="rounded=1;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="lane-exec">
+          <mxGeometry x="520" y="40" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="child-snow" value="④ ServiceNow Incidents&#xa;In: scan_results,&#xa;assignment_group&#xa;Out: incidents_created,&#xa;incidents_closed" style="rounded=1;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="lane-exec">
+          <mxGeometry x="750" y="40" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="child-remediate" value="⑤ Remediate Device&#xa;In: device_name,&#xa;corrective_config, rules&#xa;Out: remediation_status,&#xa;backup_id (optional)" style="rounded=1;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;" vertex="1" parent="lane-exec">
+          <mxGeometry x="980" y="40" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- IAG5 Scripts -->
+        <mxCell id="iag-evaluate" value="compliance_evaluate.py&#xa;(IAG5 Python)&#xa;Regex rule matching,&#xa;device scoring" style="shape=cylinder3;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="lane-exec">
+          <mxGeometry x="200" y="155" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="iag-pdf" value="compliance_generate_pdf.py&#xa;(IAG5 Python)&#xa;reportlab PDF generation,&#xa;base64 output" style="shape=cylinder3;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="lane-exec">
+          <mxGeometry x="450" y="155" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="iag-slack" value="compliance_slack_notify.py&#xa;(IAG5 Python)&#xa;Slack webhook POST,&#xa;scan summary" style="shape=cylinder3;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="lane-exec">
+          <mxGeometry x="700" y="155" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- PLATFORM SERVICES -->
+        <!-- ============================================================ -->
+
+        <mxCell id="svc-cm" value="ConfigurationManager&#xa;getDevicesFiltered&#xa;getDeviceConfig&#xa;backUpDevice" style="rounded=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="lane-platform">
+          <mxGeometry x="60" y="30" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="svc-mop" value="MOP&#xa;RunCommandTemplate&#xa;Get Running Config&#xa;(show running-config)" style="rounded=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="lane-platform">
+          <mxGeometry x="290" y="30" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="svc-iag" value="IAG5 (selab-compute-iag)&#xa;Python script execution&#xa;RUNNING / ONLINE" style="rounded=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="lane-platform">
+          <mxGeometry x="520" y="30" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="svc-state" value="IAP State Store&#xa;(MongoDB-backed)&#xa;scan_results per scan_id&#xa;Trend / history" style="rounded=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="lane-platform">
+          <mxGeometry x="750" y="30" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="svc-opsmgr" value="OperationsManager&#xa;Cron triggers&#xa;Weekly schedule" style="rounded=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="lane-platform">
+          <mxGeometry x="980" y="30" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- INTEGRATION LAYER -->
+        <!-- ============================================================ -->
+
+        <mxCell id="int-snow" value="ServiceNow Adapter v2.9.5&#xa;createIncident&#xa;updateIncident&#xa;getIncidents" style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="lane-integration">
+          <mxGeometry x="200" y="30" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="int-email" value="Email Adapter v4.7.12&#xa;mailWithAdvancedFields&#xa;PDF + CSV attachments" style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="lane-integration">
+          <mxGeometry x="450" y="30" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="int-slack" value="Slack (Incoming Webhook)&#xa;HTTP POST via IAG5&#xa;Scan summary + scores" style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="lane-integration">
+          <mxGeometry x="700" y="30" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="int-gitlab" value="GitLab&#xa;Rules JSON storage&#xa;CIS + Internal Policy&#xa;Versioned rules files" style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="lane-integration">
+          <mxGeometry x="950" y="30" width="180" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ============================================================ -->
+        <!-- EDGES — TRIGGER → ORCHESTRATOR -->
+        <!-- ============================================================ -->
+
+        <mxCell id="e-cron-orch" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="trigger-cron" target="orch-main" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-manual-orch" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;" edge="1" source="trigger-manual" target="orch-main" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ORCHESTRATOR → CHILDREN -->
+        <mxCell id="e-orch-collect" value="1" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontStyle=1;" edge="1" source="orch-main" target="child-collect" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-orch-eval" value="2" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontStyle=1;" edge="1" source="orch-main" target="child-evaluate" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-orch-report" value="3" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontStyle=1;" edge="1" source="orch-main" target="child-report" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-orch-snow" value="4" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontStyle=1;" edge="1" source="orch-main" target="child-snow" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-orch-rem" value="5 (optional)" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d79b00;dashed=1;fontStyle=1;" edge="1" source="orch-main" target="child-remediate" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- CHILDREN → PLATFORM SERVICES -->
+        <mxCell id="e-collect-cm" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;" edge="1" source="child-collect" target="svc-cm" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-eval-iag" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;" edge="1" source="child-evaluate" target="svc-iag" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-eval-state" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;" edge="1" source="child-evaluate" target="svc-state" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-report-iag" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;" edge="1" source="child-report" target="svc-iag" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-rem-cm" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d79b00;dashed=1;" edge="1" source="child-remediate" target="svc-cm" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-rem-mop" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d79b00;dashed=1;" edge="1" source="child-remediate" target="svc-mop" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- CHILDREN → INTEGRATIONS -->
+        <mxCell id="e-snow-int" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;" edge="1" source="child-snow" target="int-snow" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-iag-slack-int" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;" edge="1" source="iag-slack" target="int-slack" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-orch-email" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;" edge="1" source="orch-main" target="int-email" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- IAG SCRIPTS → IAG SERVICE -->
+        <mxCell id="e-iag-eval-svc" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;dashed=1;" edge="1" source="iag-evaluate" target="svc-iag" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-iag-pdf-svc" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;dashed=1;" edge="1" source="iag-pdf" target="svc-iag" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-iag-slack-svc" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#b85450;dashed=1;" edge="1" source="iag-slack" target="svc-iag" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- RULES → GITLAB -->
+        <mxCell id="e-eval-gitlab" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;dashed=1;" edge="1" source="child-evaluate" target="int-gitlab" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

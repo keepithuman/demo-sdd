@@ -185,6 +185,107 @@ Build and test each child before assembling the orchestrator.
 
 ---
 
+## H. Component Inputs / Outputs
+
+| # | Component | Inputs | Outputs |
+|---|-----------|--------|---------|
+| 1 | `compliance_evaluate.py` | `device_name` (str), `config_text` (str), `rules` (JSON array) | `device_score` (compliant/partial/non_compliant), `rule_results` (array: rule_id, status, evidence), `violation_count`, `critical_violation_count` |
+| 2 | `compliance_generate_pdf.py` | `scan_results` (JSON), `standard_name` (str), `standard_version` (str), `timestamp` (ISO str) | `pdf_base64` (str), `page_count` (int) |
+| 3 | `compliance_slack_notify.py` | `webhook_url` (str), `summary` (JSON: posture_score, compliant_count, non_compliant_count, partial_count, standard_name, scan_id) | `status_code` (int), `ok` (bool) |
+| 4 | `Get Running Config` (MOP) | `device` (str — device name), `device_group` (str, optional) | Raw command output: running config text |
+| 5 | `Compliance - Collect Configs` | `device_group` (str, default: "Cisco Devices") | `configs` (object: device_name → config_text), `unreachable_devices` (array of str), `device_count` (int), `taskStatus` (str) |
+| 6 | `Compliance - Evaluate and Grade` | `configs` (object), `rules` (JSON array), `standard_name` (str), `standard_version` (str), `scan_id` (str) | `scan_results` (JSON: per-device scores + rule results), `fleet_summary` (object: compliant/partial/non_compliant counts), `taskStatus` (str) |
+| 7 | `Compliance - Generate Report` | `scan_results` (JSON), `standard_name` (str), `standard_version` (str), `scan_id` (str), `timestamp` (str) | `pdf_base64` (str), `csv_string` (str), `taskStatus` (str) |
+| 8 | `Compliance - ServiceNow Incidents` | `scan_results` (JSON), `assignment_group` (str, default: "Network Team") | `incidents_created` (array: device + sys_id), `incidents_closed` (array: device + sys_id), `taskStatus` (str) |
+| 9 | `Compliance - Remediate Device` | `device_name` (str), `corrective_config` (str), `rules` (JSON array), `standard_name` (str) | `remediation_status` (pass/fail), `backup_id` (str), `post_eval_results` (JSON), `taskStatus` (str) |
+| 10 | `Compliance Audit` (orchestrator) | `device_group` (str), `standard` (str), `slack_webhook_url` (str), `email_recipients` (array), `remediation_enabled` (bool, default: false) | `scan_id` (str), `fleet_summary` (object), `pdf_base64` (str), `csv_string` (str), `incidents_created` (array) |
+| 11 | `Compliance Audit - Weekly` (trigger) | Cron schedule (no runtime inputs — uses hardcoded defaults) | Starts `Compliance Audit` workflow job |
+
+---
+
+## I. Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant T as Trigger / Engineer
+    participant O as Compliance Audit<br/>(Orchestrator)
+    participant CC as Collect Configs<br/>(Child)
+    participant CM as ConfigurationManager
+    participant EG as Evaluate & Grade<br/>(Child)
+    participant IAG as IAG5 (selab-compute-iag)
+    participant GR as Generate Report<br/>(Child)
+    participant SN as ServiceNow Incidents<br/>(Child)
+    participant SNow as ServiceNow Adapter
+    participant NOT as Orchestrator<br/>(Notify Tasks)
+    participant Email as Email Adapter
+    participant Slack as Slack (Webhook)
+
+    T->>O: Start scan (device_group, standard,<br/>webhook_url, email_recipients)
+
+    O->>CC: childJob → Collect Configs
+    CC->>CM: getDevicesFiltered (group=Cisco Devices)
+    CM-->>CC: device list (33 devices)
+    loop per device (parallel)
+        CC->>CM: getDeviceConfig (device_name)
+        CM-->>CC: config_text (or error → unreachable)
+    end
+    CC-->>O: configs map + unreachable_devices
+
+    O->>EG: childJob → Evaluate and Grade
+    loop per device (parallel)
+        EG->>IAG: runService compliance_evaluate.py<br/>(device_name, config_text, rules)
+        IAG-->>EG: rule_results, device_score
+    end
+    EG->>EG: aggregate fleet_summary
+    EG->>EG: store scan_results to IAP state store
+    EG-->>O: scan_results, fleet_summary
+
+    O->>GR: childJob → Generate Report
+    GR->>IAG: runService compliance_generate_pdf.py<br/>(scan_results, standard, timestamp)
+    IAG-->>GR: pdf_base64
+    GR->>GR: JST transform → csv_string
+    GR-->>O: pdf_base64, csv_string
+
+    O->>SN: childJob → ServiceNow Incidents
+    loop non-compliant devices
+        SN->>SNow: getIncidents (device_name)
+        SNow-->>SN: existing incidents
+        alt no open incident
+            SN->>SNow: createIncident (device, violations)
+            SNow-->>SN: sys_id
+        end
+    end
+    loop compliant devices (previously non-compliant)
+        SN->>SNow: updateIncident (state=resolved)
+        SNow-->>SN: updated
+    end
+    SN-->>O: incidents_created, incidents_closed
+
+    O->>IAG: runService compliance_slack_notify.py<br/>(webhook_url, fleet_summary)
+    IAG->>Slack: HTTP POST (scan summary)
+    Slack-->>IAG: 200 OK
+    IAG-->>O: ok=true
+
+    O->>Email: mailWithAdvancedFields<br/>(recipients, PDF + CSV attachments)
+    Email-->>O: sent
+
+    O-->>T: scan complete (scan_id, fleet_summary)
+```
+
+---
+
+## J. Draw.io Architecture Diagram
+
+See `architecture.drawio` in this directory for the visual component map. The diagram shows:
+- **Trigger layer** — OperationsManager cron + on-demand entry point
+- **Orchestration layer** — parent workflow sequencing all children
+- **Execution layer** — child workflows and IAG5 Python scripts
+- **Platform services** — ConfigurationManager, MOP
+- **Integration layer** — ServiceNow, Email, Slack
+
+---
+
 ## G. Acceptance Criteria → Tests
 
 | AC | Test |
